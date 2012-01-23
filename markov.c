@@ -4,6 +4,18 @@
 
 #include "markov.h"
 
+
+//BUG! LOOKUP[0] GETS NERFED FOR SOME REASON
+int testLookup(Chain *chain) {
+	Node *nodes = chain->nodes;
+	int *lookup = chain->_lookup;
+	
+	for(int i = 0; i < chain->nodeCount; i++) {
+		printf("%d: %d #\"%s\"\n", i, lookup[i], nodes[lookup[i]].data);
+	}
+	return 0;
+}
+
 int printNodes(Chain *chain) {
 	printf(	"Markov Chain\n" \
 			"Nodes: %d\n\n", chain->nodeCount);
@@ -57,7 +69,8 @@ int main(int argc, char *argv[]) {
 	}
 	//count += train(chain, string);
 	//fprintf(stderr, "%d Lines Parsed\n", lines);
-	fprintf(stderr, "Matched %d words\n", len);
-	printNodes(chain);
+	fprintf(stderr, "Matched %d words\n", (int)len);
+	//printNodes(chain);
+	testLookup(chain);
 	return 0;
 }

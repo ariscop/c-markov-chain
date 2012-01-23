@@ -42,43 +42,103 @@ Node *next(node *);
 
 Node *getNode(Chain *chain, char *data) {
 	//0 and 1 are reserved, start at 2
-	Node *out = NULL;
+	/*Node *out = NULL;
 	for(int i = 2; i < chain->nodeCount; i++) {
 		char *nData = chain->nodes[i].data;
 		if(strcmp(nData, data) == 0) {
 			out = &chain->nodes[i];
 			break;
 		}
-	}
-	/*
-	int min, max, ret, p;
-	max = chain->nodeCount;
-	min = 2;
-
+	}*/
+	
 	Node *nodes = chain->nodes;
 	int *lookup = chain->_lookup;
-
+	
 	Node *out2;
-	//binary search, by node id because pointers are anoying
-	while(max >= min) {
-		p = min + ((max - min) / 2);
-		ret = strcmp(nodes[lookup[p]].data, data);
-		if(ret < 0) min = p + 1;
-		if(ret > 0) max = p - 1;
-		if(ret == 0) {
-			out2 = &nodes[lookup[p]];
+	int found = 0;
+	{
+		int min, max, ret;
+
+		max = chain->nodeCount - 1;
+		min = 2;
+
+		while(max >= min) {
+			int p = min + ((max - min) / 2);
+			int ret = strcmp(data, nodes[lookup[p]].data);
+			//printf("%s: \"%s\" : p: %d, min: %d, max: %d, ret: %d\n", data, nodes[lookup[p]].data, p, min, max, ret);
+			if(ret > 0) min = p + 1;
+			if(ret < 0) max = p - 1;
+			if(ret == 0) {
+				found = 1;
+				out2 = &nodes[lookup[p]];
+				break;
+			}
+		}
+		//and now p should be the new position
+	}
+	if(!found) out2 = NULL;
+	/*if(out != NULL && out != out2) {
+		if(found) {
+			fprintf(stderr, "Comparison Failed, Looking for \"%s\", found \"%s\"\n", out->data, out2->data);
+		} else {
+			fprintf(stderr, "Failed to find\n");
+		}
+	}*/
+	//printf("\n");
+	return out2;
+}
+
+int insertLookup(Chain *chain, Node *node) {
+	//Sorted lookup array
+	//dont add 0 and 1
+	int id = node->id;
+	
+	int count = chain->nodeCount;
+	int *lookup = chain->_lookup;
+	Node *nodes = chain->nodes;
+	
+	int p = id; //for nodes 0 and 1;
+	/*{
+		int min, max, ret;
+
+		max = count - 1;
+		min = 2;
+
+		while(max > min) {
+			p = min + ((max - min) / 2);
+			Node *cnode = &nodes[lookup[p]];
+			ret = strcmp(node->data, cnode->data);
+			printf("%s: \"%s\" : p: %d, min: %d, max: %d, ret: %d\n", node->data, nodes[lookup[p]].data, p, min, max, ret);
+			if(ret > 0) min = p + 1;
+			if(ret < 0) max = p - 1;
+		}
+		//and now p should be the new position
+	}*/
+	
+	for(int i = 2; i < count; i++) {
+		int ret = strcmp(nodes[lookup[i]].data, node->data);
+		//printf("Comparing %s %s : %d\n", nodes[lookup[i]].data, node->data, ret);
+		if(ret > 0) {
+			p = i;
 			break;
 		}
 	}
 
-	if(out != out2) {
-		char one = 
-		fprintf(strerror. "Comparison Failed, Looking for \"%s\", found \"%s\"\n", out->data, out2->data);
-	}*/
-
-	return out;
+	//printf("Inserting \"%s\" at %d\n", node->data, p);
+	
+	for(int i = count - 1; i > p; i--) {
+		lookup[i] = lookup[i - 1];
+		//printf("Setting %d to %d\n", i, lookup[i - 1]);
+	}
+	
+	lookup[p] = id;
+	
+	//for(int i = 0; i < count; i++) {
+	//	printf("%d: %d \"%s\"\n", i, lookup[i], nodes[lookup[i]].data);
+	//}
+	
+	return p;
 }
-
 
 Node *newNode(Chain *chain, char *data) {
 	Node *node;
@@ -102,34 +162,7 @@ Node *newNode(Chain *chain, char *data) {
 		node->_linkAlloc = 0;
 		node->links = NULL;
 
-		
-		if(id > 1) {
-			//Sorted lookup array
-			//dont add 0 and 1
-			int count = chain->nodeCount;
-			char *lookup = chain->_lookup;
-			Node *nodes = chain->nodes;
-			
-			lookup[id] = 0; //id equals index of last element, clear it
-			
-			int p = 0;
-			{
-				int min, max, ret;
-
-				max = count;
-				min = 2;
-
-				while(max >= min) {
-					p = min + ((max - min) / 2);
-					ret = strcmp(nodes[lookup[p]].data, data);
-					if(ret < 0) min = p + 1;
-					if(ret > 0) max = p - 1;
-				}
-				//and now p should be the new position
-			}
-			memmove(&lookup[p], &lookup[p + 1], (count - p) * sizeof(int));
-			lookup[p] = id;
-		}
+		insertLookup(chain, node);
 
 	} else {
 		//node was found
@@ -228,5 +261,5 @@ int train(Chain *chain, char *data) {
 }
 
 Node *next(Chain *chain, Node *node) {
-	
+	return NULL;
 }
