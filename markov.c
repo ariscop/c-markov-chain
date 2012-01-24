@@ -4,18 +4,6 @@
 
 #include "markov.h"
 
-
-//BUG! LOOKUP[0] GETS NERFED FOR SOME REASON
-int testLookup(Chain *chain) {
-	Node *nodes = chain->nodes;
-	int *lookup = chain->_lookup;
-	
-	for(int i = 0; i < chain->nodeCount; i++) {
-		printf("%d: %d #\"%s\"\n", i, lookup[i], nodes[lookup[i]].data);
-	}
-	return 0;
-}
-
 int printNodes(Chain *chain) {
 	printf(	"Markov Chain\n" \
 			"Nodes: %d\n\n", chain->nodeCount);
@@ -26,11 +14,13 @@ int printNodes(Chain *chain) {
 				"\tText: %s\n" \
 				"\tCount: %d\n" \
 				"\tLink Count: %d\n" \
+				"\tLink Total: %d\n" \
 				"\tLinks: \n", \
 					i, node->id, \
 					node->data, \
 					node->count, \
-					node->linkCount);
+					node->linkCount, \
+					node->linkTotal);
 		
 		for(int x = 0; x < node->linkCount; x++) {
 			Node *lNode = &chain->nodes[node->links[x].nodeId];
@@ -41,6 +31,11 @@ int printNodes(Chain *chain) {
 	}
 	return 0;
 }
+
+//" to fix a nano bug
+
+//char split[] = ".?!";
+char split[] = "\r\n";
 
 int main(int argc, char *argv[]) {
 	FILE *fp = fopen(argv[1], "r");
@@ -59,18 +54,33 @@ int main(int argc, char *argv[]) {
 	//TODO: fix the bug
 	//BUG: very long lines break the 'train' function
 	int lines = 0;
-	char *line = strtok(string, "\r\n");
+	char *line = strtok(string, split);
 	while(line != NULL) {
 		count += train(chain, line);
 		lines++;
-		if((lines % 100) == 0)
+		if((lines % 1024) == 0)
 			fprintf(stderr, "%d Lines Parsed\n", lines);
-		line = strtok(NULL, "\r\n");
+		line = strtok(NULL, split);
 	}
 	//count += train(chain, string);
-	//fprintf(stderr, "%d Lines Parsed\n", lines);
-	fprintf(stderr, "Matched %d words\n", (int)len);
+	fprintf(stderr, "\n%d Lines Parsed\n", lines);
+	//fprintf(stderr, "Matched %d words\n", (int)len);
 	//printNodes(chain);
-	testLookup(chain);
+	//testLookup(chain);
+	srand(134030);
+	
+	for(int i = 0; i < 1024; i++) {
+		Node *node;
+		node = next(chain, &chain->nodes[0]);
+		printf("SENTENCE %d: ", i);
+		int x = 0;
+		while(node->id != 1 && x < 128) {
+			printf("%s ", node->data);
+			x++;
+			node = next(chain, node);
+		}
+		printf("\n\n");
+	}
+	
 	return 0;
 }

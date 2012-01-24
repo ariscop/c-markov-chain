@@ -16,6 +16,7 @@ typedef struct _Node {
 	int count; //ocourence counter
 
 	int linkCount;
+	int linkTotal;
 	int _linkAlloc;
 	Link *links;
 } Node;
@@ -44,6 +45,9 @@ Node *getNode(Chain *chain, char *data) {
 	
 	Node *nodes = chain->nodes;
 	int *lookup = chain->_lookup;
+	
+	//binary search, using my own because bsearch wont do the id nuts
+	//that i'm working with
 	
 	Node *out = NULL;
 	int found = 0;
@@ -79,27 +83,10 @@ int insertLookup(Chain *chain, Node *node) {
 	int *lookup = chain->_lookup;
 	Node *nodes = chain->nodes;
 	
-	int p = id; //for nodes 0 and 1;
-	/*{
-		int min, max, ret;
-
-		max = count - 1;
-		min = 2;
-
-		while(max > min) {
-			p = min + ((max - min) / 2);
-			Node *cnode = &nodes[lookup[p]];
-			ret = strcmp(node->data, cnode->data);
-			printf("%s: \"%s\" : p: %d, min: %d, max: %d, ret: %d\n", node->data, nodes[lookup[p]].data, p, min, max, ret);
-			if(ret > 0) min = p + 1;
-			if(ret < 0) max = p - 1;
-		}
-		//and now p should be the new position
-	}*/
+	int p = id;
 	
 	for(int i = 2; i < count; i++) {
 		int ret = strcmp(nodes[lookup[i]].data, node->data);
-		//printf("Comparing %s %s : %d\n", nodes[lookup[i]].data, node->data, ret);
 		if(ret > 0) {
 			p = i;
 			break;
@@ -141,6 +128,7 @@ Node *newNode(Chain *chain, char *data) {
 		node->id = id;
 		node->count = 1;
 		node->linkCount = 0;
+		node->linkTotal = 0;
 		node->_linkAlloc = 0;
 		node->links = NULL;
 
@@ -168,14 +156,17 @@ int link(Node *one, Node *two) {
 	if(linkId == -1) {
 		linkId = one->linkCount;
 		one->linkCount++;
+		one->linkTotal++;
 		if(linkId >= one->_linkAlloc) {
 			one->_linkAlloc += 4;
 			one->links = realloc(one->links, one->_linkAlloc*sizeof(Link));
 		}
 		one->links[linkId].nodeId = two->id;
 		one->links[linkId].count = 1;
+		
 	} else {
 		one->links[linkId].count++;
+		one->linkTotal++;
 	}
 	
 	return linkId;
@@ -203,6 +194,15 @@ int endNode(Chain *chain, Node *node) {
 static char wordRegex[] = "\\w+";
 regex_t *wReg = NULL;
 
+void toLower(char *text) {
+	while(*text != 0) {
+		if(*text <= 90 && *text >= 65) {
+			*text |= 0x20;
+		}
+		text++;
+	}
+}
+
 int train(Chain *chain, char *data) {
 	int len = strlen(data);
 	int count = 0;
@@ -223,7 +223,7 @@ int train(Chain *chain, char *data) {
 		int end = m.rm_eo;
 		int len = end - start;
 		char *new = strndup(&data[start], len);
-
+		toLower(new);
 		cur = newNode(chain, new);
 		
 		if(prev != 0) {
@@ -243,5 +243,18 @@ int train(Chain *chain, char *data) {
 }
 
 Node *next(Chain *chain, Node *node) {
+	float total = node->linkTotal;
+	int select = (rand() * (total)) / RAND_MAX;
+	int sum = 0;
+	for(int i = 0; i < node->linkCount; i++) {
+		sum += node->links[i].count;
+		//printf("Total: %f\t\tSelect: %d\t\tSum: %d\n", total, select, sum);
+		if(sum > select) {
+			//printf("Selecting %s\n", chain->nodes[node->links[i].nodeId].data);
+			return &chain->nodes[node->links[i].nodeId];
+		}
+	}
+	printf("YOU SHOULD NEVER SEE THIS LINE, SOMTHING BROKED\n");
+	exit(-1);
 	return NULL;
 }
