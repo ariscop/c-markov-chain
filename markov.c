@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "markov.h"
 
@@ -65,9 +66,9 @@ int main(int argc, char *argv[]) {
 	//count += train(chain, string);
 	fprintf(stderr, "\n%d Lines Parsed\n", lines);
 	//fprintf(stderr, "Matched %d words\n", (int)len);
-	//printNodes(chain);
+	printNodes(chain);
 	//testLookup(chain);
-	srand(134030);
+	srand(time(NULL));
 	
 	for(int i = 0; i < 1024; i++) {
 		Node *node;

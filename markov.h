@@ -23,8 +23,9 @@ typedef struct _Node {
 
 typedef struct _Chain {
 	int nodeCount;
-	int _nodeAlloc;
-	int *_lookup;
+	int _nodeAlloc; //allocated 
+	int *_lookup; //sorted list of indexes, alphabeticly sorted
+	char *buffer; //the buffer in which text is stored
 	Node *nodes;
 } Chain;
 
