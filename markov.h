@@ -192,57 +192,6 @@ int endNode(Chain *chain, Node *node) {
 	return link(node, &chain->nodes[1]);
 }
 
-static char wordRegex[] = "\\w+";
-regex_t *wReg = NULL;
-
-void toLower(char *text) {
-	while(*text != 0) {
-		if(*text <= 90 && *text >= 65) {
-			*text |= 0x20;
-		}
-		text++;
-	}
-}
-
-int train(Chain *chain, char *data) {
-	int len = strlen(data);
-	int count = 0;
-	regmatch_t m;
-	
-	if(!wReg) {
-		wReg = malloc(sizeof(wReg));
-		if(regcomp(wReg, wordRegex, REG_EXTENDED | REG_NEWLINE) != 0) {
-			printf("Error Compiling regex\n") ; return 0;
-		}
-	}
-
-	int prev = 0;
-	Node *cur = NULL;
-
-	while(regexec(wReg, data, 1, &m, 0) == 0) {
-		int start = m.rm_so;
-		int end = m.rm_eo;
-		int len = end - start;
-		char *new = strndup(&data[start], len);
-		toLower(new);
-		cur = newNode(chain, new);
-		
-		if(prev != 0) {
-			link(&chain->nodes[prev], cur);
-		} else {
-			startNode(chain, cur);
-		}
-		
-		if(cur->count != 1) free(new);
-
-		data += m.rm_eo;
-		prev = cur->id;
-	} 
-
-	if(cur) endNode(chain, cur);
-	return count;
-}
-
 Node *next(Chain *chain, Node *node) {
 	float total = node->linkTotal;
 	int select = (rand() * (total)) / RAND_MAX;
@@ -250,12 +199,24 @@ Node *next(Chain *chain, Node *node) {
 	for(int i = 0; i < node->linkCount; i++) {
 		sum += node->links[i].count;
 		//printf("Total: %f\t\tSelect: %d\t\tSum: %d\n", total, select, sum);
-		if(sum > select) {
+		if(sum >= select) {
 			//printf("Selecting %s\n", chain->nodes[node->links[i].nodeId].data);
 			return &chain->nodes[node->links[i].nodeId];
 		}
 	}
-	printf("YOU SHOULD NEVER SEE THIS LINE, SOMTHING BROKED\n");
-	exit(-1);
-	return NULL;
+	fprintf(stderr, "YOU SHOULD NEVER SEE THIS LINE, SOMTHING BROKED, FAILED ON %s\n"
+					"select = %d ; sum = %d ; node->linkCount = %d\n",
+					node->data ? node->data : "(null)", select, sum, node->linkCount);
+	//return NULL;
+	return(&chain->nodes[node->links[select - 1].nodeId]);
 }
+
+Chain *saveChain(Chain *chain, char *filename) {
+	
+	return chain;
+}
+
+Chain *loadChain(char *filename) {
+
+}
+

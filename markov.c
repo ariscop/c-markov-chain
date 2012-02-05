@@ -1,9 +1,63 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 #include "markov.h"
+
+static char wordRegex[] = "\\w+";
+regex_t *wReg = NULL;
+
+void toLower(char *text) {
+	while(*text != 0) {
+		if(*text <= 90 && *text >= 65) {
+			*text |= 0x20;
+		}
+		text++;
+	}
+}
+
+int train(Chain *chain, char *data) {
+	int len = strlen(data);
+	int count = 0;
+	regmatch_t m;
+	
+	if(!wReg) {
+		wReg = malloc(sizeof(wReg));
+		if(regcomp(wReg, wordRegex, REG_EXTENDED | REG_NEWLINE) != 0) {
+			printf("Error Compiling regex\n") ; return 0;
+		}
+	}
+
+	int prev = 0;
+	Node *cur = NULL;
+
+	while(regexec(wReg, data, 1, &m, 0) == 0) {
+		int start = m.rm_so;
+		int end = m.rm_eo;
+		size_t len = end - start;
+		char *new = strndup(&data[start],len);
+		toLower(new);
+		cur = newNode(chain, new);
+		
+		if(prev != 0) {
+			link(&chain->nodes[prev], cur);
+		} else {
+			startNode(chain, cur);
+		}
+		
+		if(cur->count != 1) free(new);
+
+		data += m.rm_eo;
+		prev = cur->id;
+	} 
+
+	if(cur) endNode(chain, cur);
+	return count;
+}
+
 
 int printNodes(Chain *chain) {
 	printf(	"Markov Chain\n" \
@@ -35,8 +89,8 @@ int printNodes(Chain *chain) {
 
 //" to fix a nano bug
 
-//char split[] = ".?!";
-char split[] = "\r\n";
+char split[] = ".?!";
+//char split[] = "\r\n";
 
 int main(int argc, char *argv[]) {
 	FILE *fp = fopen(argv[1], "r");
@@ -66,8 +120,8 @@ int main(int argc, char *argv[]) {
 	//count += train(chain, string);
 	fprintf(stderr, "\n%d Lines Parsed\n", lines);
 	//fprintf(stderr, "Matched %d words\n", (int)len);
-	printNodes(chain);
-	//testLookup(chain);
+	//printNodes(chain);
+	
 	srand(time(NULL));
 	
 	for(int i = 0; i < 1024; i++) {
@@ -82,6 +136,26 @@ int main(int argc, char *argv[]) {
 		}
 		printf("\n\n");
 	}
+	
+	/*for(int i = 0; i < 1024; i++) {
+		Node *prev = &chain->nodes[0];
+		Node *node = &chain->nodes[0];
+		printf("SENTENCE %d: ", i);
+		int x = 0;
+		while(node->id != 1 && x < 16) {
+			Node *new = next(chain, node);
+			for(int z = 0; z < 16; z++) {
+				if(getLink(prev, new) && new->id != 1) {
+					printf("%s ", new->data);
+					prev = node;
+					node = new;
+					z = 16;
+				}
+			}
+			x++;
+		}
+		printf("\n\n");
+	}*/
 	
 	return 0;
 }
