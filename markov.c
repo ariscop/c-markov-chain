@@ -31,30 +31,25 @@ int train(Chain *chain, char *data) {
 		}
 	}
 
-	int prev = 0;
-	int cur = 0;
+	beginTrain(chain);
 
 	while(regexec(wReg, data, 1, &m, 0) == 0) {
 		int start = m.rm_so;
 		int end = m.rm_eo;
+		
 		size_t len = end - start;
 		char *new = strndup(&data[start],len);
 		toLower(new);
-		cur = newNode(chain, new);
 		
-		if(prev != 0) {
-			link(chain, prev, cur);
-		} else {
-			startNode(chain, cur);
-		}
+		int cur = nodeTrain(chain, new);
 		
 		if(chain->nodes[cur].count != 1) free(new);
 
 		data += m.rm_eo;
-		prev = cur;
 	} 
 
-	if(cur) endNode(chain, cur);
+	endTrain(chain);
+
 	return count;
 }
 

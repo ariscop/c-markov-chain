@@ -29,6 +29,12 @@ typedef struct _Chain {
 	int *_lookup; //sorted list of indexes, alphabeticly sorted
 	char *buffer; //the buffer in which text is stored
 	Node *nodes;
+	
+	struct { 
+		int cur;
+		int count;
+		int started;
+	} state;
 } Chain;
 
 //this will be inteneded to keep and generate sentences
@@ -191,13 +197,25 @@ Chain *newChain() {
 	return chain;
 }
 
-int startNode(Chain *chain, int node) {
-	return link(chain, 0, node);
+int beginTrain(Chain *chain) {
+	chain->state.cur = 0;
+	chain->state.count = 0;
+	chain->state.started = 1;
 }
 
-int endNode(Chain *chain, int node) {
-	return link(chain, node, 1);
+int nodeTrain(Chain *chain, char *data) {
+	int node = newNode(chain, data);
+	link(chain, chain->state.cur, node);
+	chain->state.cur = node;
+	chain->state.count++;
+	return(node);
 }
+
+int endTrain(Chain *chain) {
+	link(chain, chain->state.cur, 1);
+	chain->state.started = 0;
+	return chain->state.count;
+}	
 
 int next(Chain *chain, int _node) {
 	Node *node = &chain->nodes[_node];
