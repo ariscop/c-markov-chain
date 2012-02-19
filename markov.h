@@ -4,6 +4,8 @@
 #include <sys/types.h>
 #include <regex.h>
 
+#ifndef _MARKOV_H_
+#define _MARKOV_H_
 
 typedef struct _Link {
 	int nodeId; //ID 0 IS START OF STRING, ID 1 IS END
@@ -32,17 +34,17 @@ typedef struct _Chain {
 //this will be inteneded to keep and generate sentences
 //to begin with, can easily generic to
 //any object type
-/*
+
 Chain *newChain();
-Chain *newNode(Chain *chain, char *data);
-Node *linkNode(Node *node, Node *node);
-Node *next(node *);
-*/
+int newNode(Chain *, char *);
+int linkNode(Chain *, int , int);
+int next(Chain *, int);
+
 //Not implimented yet
 //int save(Chain *, char *);
 //Chain *recall(char *);
 
-Node *getNode(Chain *chain, char *data) {
+int getNode(Chain *chain, char *data) {
 	
 	Node *nodes = chain->nodes;
 	int *lookup = chain->_lookup;
@@ -50,7 +52,7 @@ Node *getNode(Chain *chain, char *data) {
 	//binary search, using my own because bsearch wont do the id nuts
 	//that i'm working with
 	
-	Node *out = NULL;
+	int out = -1;
 	int found = 0;
 	{
 		int min, max, ret;
@@ -66,7 +68,7 @@ Node *getNode(Chain *chain, char *data) {
 			if(ret < 0) max = p - 1;
 			if(ret == 0) {
 				found = 1;
-				out = &nodes[lookup[p]];
+				out = lookup[p];
 				break;
 			}
 		}
@@ -110,13 +112,14 @@ int insertLookup(Chain *chain, Node *node) {
 	return p;
 }
 
-Node *newNode(Chain *chain, char *data) {
+int newNode(Chain *chain, char *data) {
 	Node *node;
 	int id;
 	
-	node = getNode(chain, data);
+	id = getNode(chain, data);
+	//node = &chain->nodes[getNode(chain, data)];
 	//create a new node
-	if(node == NULL) {
+	if(id == -1) {
 		id = chain->nodeCount;
 		chain->nodeCount++;
 		if(id >= chain->_nodeAlloc) {
@@ -138,10 +141,11 @@ Node *newNode(Chain *chain, char *data) {
 	} else {
 		//node was found
 		//incriment counter
+		node = &chain->nodes[id];
 		node->count++;
 	}
 	
-	return node;
+	return id;
 }
 
 
@@ -152,7 +156,10 @@ int getLink(Node *one, Node *two) {
 	return -1;
 }
 
-int link(Node *one, Node *two) {
+int link(Chain *chain, int _one, int _two) {
+	Node *one = &chain->nodes[_one];
+	Node *two = &chain->nodes[_two];
+	
 	int linkId = getLink(one, two);
 	if(linkId == -1) {
 		linkId = one->linkCount;
@@ -184,15 +191,16 @@ Chain *newChain() {
 	return chain;
 }
 
-int startNode(Chain *chain, Node *node) {
-	return link(&chain->nodes[0], node);
+int startNode(Chain *chain, int node) {
+	return link(chain, 0, node);
 }
 
-int endNode(Chain *chain, Node *node) {
-	return link(node, &chain->nodes[1]);
+int endNode(Chain *chain, int node) {
+	return link(chain, node, 1);
 }
 
-Node *next(Chain *chain, Node *node) {
+int next(Chain *chain, int _node) {
+	Node *node = &chain->nodes[_node];
 	float total = node->linkTotal;
 	int select = (rand() * (total)) / RAND_MAX;
 	int sum = 0;
@@ -201,14 +209,15 @@ Node *next(Chain *chain, Node *node) {
 		//printf("Total: %f\t\tSelect: %d\t\tSum: %d\n", total, select, sum);
 		if(sum >= select) {
 			//printf("Selecting %s\n", chain->nodes[node->links[i].nodeId].data);
-			return &chain->nodes[node->links[i].nodeId];
+			return chain->nodes[node->links[i].nodeId].id;
 		}
 	}
 	fprintf(stderr, "YOU SHOULD NEVER SEE THIS LINE, SOMTHING BROKED, FAILED ON %s\n"
 					"select = %d ; sum = %d ; node->linkCount = %d\n",
 					node->data ? node->data : "(null)", select, sum, node->linkCount);
 	//return NULL;
-	return(&chain->nodes[node->links[select - 1].nodeId]);
+	int out = chain->nodes[node->links[select - 1].nodeId].id;
+	return(out);
 }
 
 Chain *saveChain(Chain *chain, char *filename) {
@@ -220,3 +229,5 @@ Chain *loadChain(char *filename) {
 
 }
 
+
+#endif // _MARKOV_H_

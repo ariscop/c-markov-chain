@@ -32,7 +32,7 @@ int train(Chain *chain, char *data) {
 	}
 
 	int prev = 0;
-	Node *cur = NULL;
+	int cur = 0;
 
 	while(regexec(wReg, data, 1, &m, 0) == 0) {
 		int start = m.rm_so;
@@ -43,15 +43,15 @@ int train(Chain *chain, char *data) {
 		cur = newNode(chain, new);
 		
 		if(prev != 0) {
-			link(&chain->nodes[prev], cur);
+			link(chain, prev, cur);
 		} else {
 			startNode(chain, cur);
 		}
 		
-		if(cur->count != 1) free(new);
+		if(chain->nodes[cur].count != 1) free(new);
 
 		data += m.rm_eo;
-		prev = cur->id;
+		prev = cur;
 	} 
 
 	if(cur) endNode(chain, cur);
@@ -125,12 +125,12 @@ int main(int argc, char *argv[]) {
 	srand(time(NULL));
 	
 	for(int i = 0; i < 1024; i++) {
-		Node *node;
-		node = next(chain, &chain->nodes[0]);
+		int node;
+		node = next(chain, 0);
 		printf("SENTENCE %d: ", i);
 		int x = 0;
-		while(node->id != 1 && x < 128) {
-			printf("%s ", node->data);
+		while(node != 1 && x < 128) {
+			printf("%s ", chain->nodes[node].data);
 			x++;
 			node = next(chain, node);
 		}
