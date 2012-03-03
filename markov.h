@@ -162,7 +162,7 @@ int getLink(Node *one, Node *two) {
 	return -1;
 }
 
-int link(Chain *chain, int _one, int _two) {
+int nodeLink(Chain *chain, int _one, int _two) {
 	Node *one = &chain->nodes[_one];
 	Node *two = &chain->nodes[_two];
 	
@@ -203,19 +203,29 @@ int beginTrain(Chain *chain) {
 	chain->state.started = 1;
 }
 
-int nodeTrain(Chain *chain, char *data) {
+int _nodeTrain(Chain *chain, char *data) {
 	int node = newNode(chain, data);
-	link(chain, chain->state.cur, node);
+	nodeLink(chain, chain->state.cur, node);
 	chain->state.cur = node;
 	chain->state.count++;
-	return(node);
+	return(node);	
+}
+
+int nodeTrainN(Chain *chain, char *_data, int len) {
+	char *data = strndup(_data, len);
+	return _nodeTrain(chain, data);
+}
+
+int nodeTrain(Chain *chain, char *_data) {
+	char *data = strdup(_data);
+	return _nodeTrain(chain, data);	
 }
 
 int endTrain(Chain *chain) {
-	link(chain, chain->state.cur, 1);
+	nodeLink(chain, chain->state.cur, 1);
 	chain->state.started = 0;
 	return chain->state.count;
-}	
+}
 
 int next(Chain *chain, int _node) {
 	Node *node = &chain->nodes[_node];
@@ -238,14 +248,66 @@ int next(Chain *chain, int _node) {
 	return(out);
 }
 
-Chain *saveChain(Chain *chain, char *filename) {
+
+Chain *saveChain(Chain *chain, FILE *file) {
+	for(int x = 2; x < chain->nodeCount; x++) {
+		Node *node = &chain->nodes[x];
+		fprintf(file, "n:%d:%s\n", x, node->data);
+	}
 	
+	for(int x = 0; x < chain->nodeCount; x++) {
+		Node *node = &chain->nodes[x];
+		for(int y = 0; y < node->linkCount; y++) {
+			fprintf(file, "l:%d:%d:%d\n",
+				x, node->links[y].nodeId, node->links[y].count);
+		}
+	}
 	return chain;
 }
 
-Chain *loadChain(char *filename) {
+Chain *loadChain(FILE *file) {
+	long pos = ftell(file);
+	fseek(file, 0L, SEEK_END);
+	long len = ftell(file);
+	fseek(file, 0L, SEEK_SET);
+	
+	char *string = malloc(len);
+	fread(string, len, 1, file);	
+	
+	fseek(file, pos, SEEK_SET);
+	
+	Chain *chain = newChain();
+	
+	char *outer, *inner;
+	
+	char *line = strtok_r(string, "\n", &outer);
+	while(line != NULL) {
 
+		char *token = strtok_r(line, ":", &inner);
+		if(token[0] == 'n') {
+			int id = atoi(strtok_r(NULL, ":", &inner));
+			char *data = strtok_r(NULL, ":", &inner);
+			
+			int nid = newNode(chain, strdup(data));
+			//fprintf(stdout, "node:%d:%s\n", id, data);
+			
+		} else if(token[0] == 'l') {
+			int one = atoi(strtok_r(NULL, ":", &inner));
+			int two = atoi(strtok_r(NULL, ":", &inner));
+			int count = atoi(strtok_r(NULL, ":", &inner));
+			int linkId = nodeLink(chain, one, two);
+			chain->nodes[one].links[linkId].count += count - 1;
+			chain->nodes[one].linkTotal += count - 1;
+			//fprintf(stdout, "link:%d:%d:%d\n", one, two, count);
+		} else {
+			//something else
+		}	
+		line = strtok_r(NULL, "\n", &outer);
+	}
+	
+	free(string);
+	
+	return chain;
 }
-
 
 #endif // _MARKOV_H_

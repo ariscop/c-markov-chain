@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <time.h>
 
 #include "markov.h"
@@ -33,17 +34,15 @@ int train(Chain *chain, char *data) {
 
 	beginTrain(chain);
 
+	toLower(data);
+
 	while(regexec(wReg, data, 1, &m, 0) == 0) {
 		int start = m.rm_so;
 		int end = m.rm_eo;
 		
 		size_t len = end - start;
-		char *new = strndup(&data[start],len);
-		toLower(new);
 		
-		int cur = nodeTrain(chain, new);
-		
-		if(chain->nodes[cur].count != 1) free(new);
+		nodeTrainN(chain, &data[start], len);
 
 		data += m.rm_eo;
 	} 
@@ -84,29 +83,16 @@ int printNodes(Chain *chain) {
 
 //" to fix a nano bug
 
-char split[] = ".?!";
-//char split[] = "\r\n";
+//char split[] = ".?!";
+char split[] = "\r\n";
 
-int main(int argc, char *argv[]) {
-	FILE *fp = fopen(argv[1], "r");
-	fseek(fp, 0L, SEEK_END);
-	long len = ftell(fp);
-	fseek(fp, 0L, SEEK_SET);
-	
-	char *string = malloc(len);
-	fread(string, len, 1, fp);
-	fclose(fp);
-	
-	Chain *chain = newChain();
-	fprintf(stderr, "Training...\n");
-	int count = 0;
-
+int doTrain(Chain *chain, char *string) {
 	//TODO: fix the bug
 	//BUG: very long lines break the 'train' function
 	int lines = 0;
 	char *line = strtok(string, split);
 	while(line != NULL) {
-		count += train(chain, line);
+		train(chain, line);
 		lines++;
 		if((lines % 1024) == 0)
 			fprintf(stderr, "%d Lines Parsed\n", lines);
@@ -114,12 +100,13 @@ int main(int argc, char *argv[]) {
 	}
 	//count += train(chain, string);
 	fprintf(stderr, "\n%d Lines Parsed\n", lines);
-	//fprintf(stderr, "Matched %d words\n", (int)len);
-	//printNodes(chain);
+	return lines;
+}
+
+int generate(Chain *chain, int count) {
+	srand(time(NULL)); //random seed :P
 	
-	srand(time(NULL));
-	
-	for(int i = 0; i < 1024; i++) {
+	for(int i = 0; i < count; i++) {
 		int node;
 		node = next(chain, 0);
 		printf("SENTENCE %d: ", i);
@@ -131,26 +118,88 @@ int main(int argc, char *argv[]) {
 		}
 		printf("\n\n");
 	}
+	return count;
+}
+
+long flength(FILE *fp) {
+	long pos = ftell(fp);
+	fseek(fp, 0L, SEEK_END);
+	long len = ftell(fp);
+	fseek(fp, pos, SEEK_SET);
 	
-	/*for(int i = 0; i < 1024; i++) {
-		Node *prev = &chain->nodes[0];
-		Node *node = &chain->nodes[0];
-		printf("SENTENCE %d: ", i);
-		int x = 0;
-		while(node->id != 1 && x < 16) {
-			Node *new = next(chain, node);
-			for(int z = 0; z < 16; z++) {
-				if(getLink(prev, new) && new->id != 1) {
-					printf("%s ", new->data);
-					prev = node;
-					node = new;
-					z = 16;
+	return len;
+}
+
+char *help = "markov utility\n" \
+	"-l [file] : load chain\n" \
+	"-t [file] : Train with file\n" \
+	"-s [file] : Save to file\n" \
+	"-g [count] : generate random setences\n" \
+	"-h : print help\n";
+
+int main(int argc, char *argv[]) {
+	Chain *chain = NULL;
+	
+	char c;
+	FILE *file;
+	int count = 0;
+	
+	while ( (c = getopt(argc, argv, "t:l:g:s:hg:")) != -1) {
+		count++;
+		switch(c) {
+			case 'l':
+				file = fopen(optarg, "r");
+				if(file) {
+					chain = loadChain(file);
+					fclose(file);
+				} else {
+					fprintf(stderr,
+					"Failed to load chain \"%s\"\n", optarg);
 				}
-			}
-			x++;
+				break;
+			case 't':
+				file = fopen(optarg, "r");
+				if(file) {
+					long len = flength(file);
+					char *string = malloc(len);
+					if(!chain) chain = newChain();
+					fread(string, len, 1, file);
+					doTrain(chain, string);
+					fclose(file);
+				} else {
+					fprintf(stderr,
+					"Failed to load training file \"%s\"\n", optarg);
+					exit(0);
+				}
+				break;
+			case 's':
+				file = fopen(optarg, "w");
+				if(file) {
+					fprintf(stderr, "Saving to \"%s\"...\n", optarg);
+					saveChain(chain, file);
+					fclose(file);
+				} else {
+					fprintf(stderr,
+					"Failed open output file \"%s\"\n", optarg);
+					exit(0);
+				}
+				break;
+			case 'g':
+				if(chain) {
+					generate(chain, atoi(optarg));
+				} else {
+					fprintf(stderr, "Error, no chain\n");
+					exit(0);
+				}
+				break;
+			case 'h':
+				printf("%s\n", help);
+				exit(0);
+				break;
 		}
-		printf("\n\n");
-	}*/
+	}
+	
+	if(!count) printf("%s\n", help);
 	
 	return 0;
 }
