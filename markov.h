@@ -2,7 +2,6 @@
 #include <string.h>
 
 #include <sys/types.h>
-#include <regex.h>
 
 #ifndef _MARKOV_H_
 #define _MARKOV_H_
@@ -42,6 +41,7 @@ typedef struct _Chain {
 //any object type
 
 Chain *newChain();
+void freeChain(Chain *);
 int newNode(Chain *, char *);
 int linkNode(Chain *, int , int);
 int next(Chain *, int);
@@ -212,7 +212,8 @@ int _nodeTrain(Chain *chain, char *data) {
 }
 
 int nodeTrainN(Chain *chain, char *_data, int len) {
-	char *data = strndup(_data, len);
+	char *data = strndup(_data, len + 1);
+	data[len] = 0;
 	return _nodeTrain(chain, data);
 }
 
@@ -248,6 +249,17 @@ int next(Chain *chain, int _node) {
 	return(out);
 }
 
+void freeChain(Chain *chain) {
+	for(int x = 0; x < chain->nodeCount; x++) {
+		if(x > 1) free(chain->nodes[x].data);
+		free(chain->nodes[x].links);
+		chain->nodes[x].id = 0;
+	}
+	free(chain->_lookup);
+	free(chain->buffer);
+	free(chain->nodes);
+	free(chain);
+}
 
 Chain *saveChain(Chain *chain, FILE *file) {
 	for(int x = 2; x < chain->nodeCount; x++) {

@@ -8,8 +8,10 @@
 
 #include "markov.h"
 
-static char wordRegex[] = "\\w+";
+#include <regex.h>
+
 regex_t *wReg = NULL;
+char *split = NULL;
 
 void toLower(char *text) {
 	while(*text != 0) {
@@ -25,13 +27,6 @@ int train(Chain *chain, char *data) {
 	int count = 0;
 	regmatch_t m;
 	
-	if(!wReg) {
-		wReg = malloc(sizeof(wReg));
-		if(regcomp(wReg, wordRegex, REG_EXTENDED | REG_NEWLINE) != 0) {
-			printf("Error Compiling regex\n") ; return 0;
-		}
-	}
-
 	beginTrain(chain);
 
 	toLower(data);
@@ -51,7 +46,6 @@ int train(Chain *chain, char *data) {
 
 	return count;
 }
-
 
 int printNodes(Chain *chain) {
 	printf(	"Markov Chain\n" \
@@ -81,10 +75,16 @@ int printNodes(Chain *chain) {
 	return 0;
 }
 
-//" to fix a nano bug
 
-//char split[] = ".?!";
-char split[] = "\r\n";
+int compileRegex(char *reg) {
+	if(!wReg)
+		wReg = malloc(sizeof(regex_t));
+	if(regcomp(wReg, reg, REG_EXTENDED | REG_NEWLINE) != 0) {
+		printf("Error Compiling regex\n") ; return 0;
+	}
+	return 1;
+}
+//" to fix a nano bug
 
 int doTrain(Chain *chain, char *string) {
 	//TODO: fix the bug
@@ -104,7 +104,6 @@ int doTrain(Chain *chain, char *string) {
 }
 
 int generate(Chain *chain, int count) {
-	srand(time(NULL)); //random seed :P
 	
 	for(int i = 0; i < count; i++) {
 		int node;
@@ -135,6 +134,10 @@ char *help = "markov utility\n" \
 	"-t [file] : Train with file\n" \
 	"-s [file] : Save to file\n" \
 	"-g [count] : generate random setences\n" \
+	"-r [regex] : set the split regex, defaults to \\w+\n" \
+	"-d [string] : entry delimiters, defaults to \\r\\n\n" \
+	"              (escapes not decoded)\n" \
+	"-x [int] : set random seed, for testing" \
 	"-h : print help\n";
 
 int main(int argc, char *argv[]) {
@@ -144,7 +147,13 @@ int main(int argc, char *argv[]) {
 	FILE *file;
 	int count = 0;
 	
-	while ( (c = getopt(argc, argv, "t:l:g:s:hg:")) != -1) {
+	//default regex
+	compileRegex("\\w+");
+	//default delimiters
+	split = "\r\n";
+	srand(time(NULL)); //random seed :P
+	
+	while ( (c = getopt(argc, argv, "t:l:g:s:r:x:d:hg:")) != -1) {
 		count++;
 		switch(c) {
 			case 'l':
@@ -192,6 +201,16 @@ int main(int argc, char *argv[]) {
 					exit(0);
 				}
 				break;
+			case 'r':
+				if(!compileRegex(optarg))
+					exit(0);
+				break;
+			case 'd':
+				split = strdup(optarg);
+				break;
+			case 'x':
+				srand(atoi(optarg));
+				break;
 			case 'h':
 				printf("%s\n", help);
 				exit(0);
@@ -200,6 +219,7 @@ int main(int argc, char *argv[]) {
 	}
 	
 	if(!count) printf("%s\n", help);
+	if(chain) freeChain(chain);
 	
 	return 0;
 }
